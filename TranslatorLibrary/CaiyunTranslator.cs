@@ -34,60 +34,72 @@ namespace TranslatorLibrary
             if (srcLang == "jp")
                 srcLang = "ja";
 
-            // 原文
-            string q = sourceText;
-            string retString;
+            int retry_count = 0;
+            while (retry_count < 3)
+            {
+                try
+                {
+                    // 原文
+                    string q = sourceText;
+                    string retString;
 
-            string trans_type = srcLang + "2" + desLang;
+                    string trans_type = srcLang + "2" + desLang;
 
-            string url = "https://api.interpreter.caiyunai.com/v1/translator";
-            //json参数
-            string jsonParam = "{\"source\": [\"" + q + "\"], \"trans_type\": \"" + trans_type + "\", \"request_id\": \"demo\", \"detect\": true}";
+                    string url = "https://api.interpreter.caiyunai.com/v1/translator";
+                    //json参数
+                    string jsonParam = "{\"source\": [\"" + q + "\"], \"trans_type\": \"" + trans_type + "\", \"request_id\": \"demo\", \"detect\": true}";
 
-            var hc = CommonFunction.GetHttpClient();
-            var req = new StringContent(jsonParam);
-            req.Headers.Add("X-Authorization", "token " + caiyunToken);
-            req.Headers.Add("ContentType", "application/json;charset=UTF-8");
-            try
-            {
-                retString = hc.PostAsync(url, req).GetAwaiter().GetResult().Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            }
-            catch (System.Net.Http.HttpRequestException ex)
-            {
-                errorInfo = ex.Message;
-                return null;
-            }
-            catch (System.Threading.Tasks.TaskCanceledException ex)
-            {
-                errorInfo = ex.Message;
-                return null;
-            }
-            finally
-            {
-                req.Dispose();
-            }
+                    var hc = CommonFunction.GetHttpClient();
+                    var req = new StringContent(jsonParam);
+                    req.Headers.Add("X-Authorization", "token " + caiyunToken);
+                    req.Headers.Add("ContentType", "application/json;charset=UTF-8");
+                    try
+                    {
+                        retString = hc.PostAsync(url, req).GetAwaiter().GetResult().Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                    }
+                    catch (System.Net.Http.HttpRequestException ex)
+                    {
+                        errorInfo = ex.Message;
+                        return null;
+                    }
+                    catch (System.Threading.Tasks.TaskCanceledException ex)
+                    {
+                        errorInfo = ex.Message;
+                        return null;
+                    }
+                    finally
+                    {
+                        req.Dispose();
+                    }
 
-            CaiyunTransResult oinfo;
-            try
-            {
-                oinfo = JsonConvert.DeserializeObject<CaiyunTransResult>(retString);
-            }
-            catch {
-                errorInfo = "JsonConvert Error";
-                return null;
-            }
+                    CaiyunTransResult oinfo;
+                    try
+                    {
+                        oinfo = JsonConvert.DeserializeObject<CaiyunTransResult>(retString);
+                    }
+                    catch
+                    {
+                        errorInfo = "JsonConvert Error";
+                        return null;
+                    }
 
-            if (oinfo?.target.Count >= 1)
-            {
-                //得到翻译结果
-                return string.Join("", oinfo.target.Select(x => Regex.Unescape(x)));
+                    if (oinfo?.target.Count >= 1)
+                    {
+                        //得到翻译结果
+                        return string.Join("", oinfo.target.Select(x => Regex.Unescape(x)));
+                    }
+                    else
+                    {
+                        errorInfo = "ErrorInfo:" + oinfo.message;
+                        return null;
+                    }
+                }
+                catch
+                {
+                    retry_count++;
+                }
             }
-            else
-            {
-                errorInfo = "ErrorInfo:" + oinfo.message;
-                return null;
-            }
-            
+            return null;
         }
 
         public void TranslatorInit(string param1, string param2 = "")
